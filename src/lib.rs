@@ -8,6 +8,8 @@ use std::fmt;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::Instant;
+use std::io;
+use std::convert::From;
 
 /// Describes a CLI tool wrapped for usage in the program.
 pub trait CliTool<O, T, E> {
@@ -31,6 +33,7 @@ pub enum CliError {
     FfmpegNotFound,
     FfprobeNotFound,
     InvalidVersion(String),
+    IOError(String),
 }
 
 impl fmt::Display for CliError {
@@ -38,15 +41,26 @@ impl fmt::Display for CliError {
         match &self {
             CliError::FfmpegNotFound => writeln!(f, "CliError: Couldn't find ffmpeg in path"),
             CliError::FfprobeNotFound => writeln!(f, "CliError: Couldn't find ffprobe in path"),
-            CliError::InvalidVersion(version) => writeln!(f, "CliError: Version {} not supported", version)
+            CliError::InvalidVersion(version) => writeln!(f, "CliError: Version {} not supported", version),
+            CliError::IOError(e) => writeln!(f, "IO Error: {}", e),
         }
     }
 }
 
 impl Error for CliError {}
 
+impl From<io::Error> for CliError {
+    fn from(error: io::Error) -> Self {
+        // io::Error doesn't implement Clone, so we can't store it directly.
+        let dump = format!("{}", error);
+        CliError::IOError(dump)
+    }
+}
+
+type CliResult = Result<(), CliError>;
+
 /// Checks if all external tools are available and with the required version.
-fn check() -> Result<(), CliError> {
+fn check() -> CliResult {
     let has_ffprobe = FFPROBE::is_installed();
     let has_ffmpeg = FFMPEG::is_installed();
 
@@ -63,25 +77,15 @@ fn check() -> Result<(), CliError> {
     }
 }
 
-pub fn run(input_file: String, output_folder: String, activation_bytes: String) -> i32 {
-    if let Err(e) = check() {
-        eprint!("{}", e);
-        return 1;
-    }
+/// Run the actual tool to transcode all chapters from the given `input_file` into individual
+///  MP3 files in the `output_folder`. Use the given `activation_bytes` to decrypt the Audbile
+///  AAX file.
+pub fn run(input_file: String, output_folder: String, activation_bytes: String) -> CliResult {
+    check()?;
+    
+    let result = FFPROBE::execute(&input_file)?;
 
-    let result = match FFPROBE::execute(&input_file) {
-        Ok(result) => result,
-        Err(e) => {
-            eprint!("{}", e);
-            return 2;
-        }
-    };
-
-    for chapter in result.chapters.iter() {
-        println!("Chapter {} from {} to {}", chapter.track_nr, chapter.start, chapter.end);
-    }
-
-    let options: Vec<ffmpeg::FfmpegOptions> = result.chapters.iter().map(|chapter| {
+    result.chapters.iter().map(|chapter| {
         ffmpeg::FfmpegOptions {
             activation_bytes: &activation_bytes,
             start: &chapter.start, end: &chapter.end,
@@ -90,17 +94,19 @@ pub fn run(input_file: String, output_folder: String, activation_bytes: String) 
             input_file: PathBuf::from(&input_file),
             output_folder: PathBuf::from(&output_folder) // todo make sure this exists and is empty!
         }
-    }).collect();
-    for option in options {
-        let start = Instant::now();
-        match FFMPEG::execute(&option) {
-            Ok(_) => println!("Chapter {} done in {}s", option.track_nr, start.elapsed().as_secs()),
-            Err(e) => {
-                eprintln!("{}", e);
-                return 3;
+    }).fold(Ok(()), |acc, option| {
+        if let Err(_) = &acc {
+            acc
+        } else {
+            println!("Starting chapter {}", option.track_nr);
+            let start = Instant::now();
+            let result = FFMPEG::execute(&option);
+            if let Ok(_) = result {
+                println!("Chapter {} done in {}s", option.track_nr, start.elapsed().as_secs());
             }
+            result
         }
-    }
+    })?; // Using ? converts the io::Error to a CliError
 
-    0
+    Ok(())
 }

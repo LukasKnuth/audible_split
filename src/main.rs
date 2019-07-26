@@ -34,6 +34,15 @@ fn main() {
     let output = matches.value_of("output").unwrap().to_string();
     let activation_bytes = matches.value_of("activation_bytes").unwrap().to_string();
 
-    let result_code = audible_split::run(input, output, activation_bytes);
-    process::exit(result_code);
+    let result = audible_split::run(input, output, activation_bytes);
+    match result {
+        Ok(_) => {
+            println!("All chapters completed successfully");
+            process::exit(0);
+        },
+        Err(e) => {
+            eprintln!("Error while transcoding: {}", e);
+            process::exit(1);
+        }
+    }
 }
