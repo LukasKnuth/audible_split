@@ -45,6 +45,8 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
         let mut command = Command::new(BIN_NAME);
         command.arg("-version");
 
+        debug!("check command: {:?}", command);
+
         if let Ok(output) = command.output() {
             let regex = Regex::new(r"ffmpeg version (?P<version>(?:\d\.?)+)").unwrap();
 
@@ -85,7 +87,7 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
             .arg("-metadata").arg(&track)
             .arg(options.output_file());
 
-        //println!("Executing {:?}", command); // TODO Can we set output levels?
+        debug!("transcode command: {:?}", command);
         
         let output = command.output()?;
         if output.status.success() {

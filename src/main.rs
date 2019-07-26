@@ -3,7 +3,12 @@ use std::process;
 extern crate clap;
 use clap::{Arg, App};
 
+#[macro_use] extern crate log;
+extern crate simplelog;
+use simplelog::{SimpleLogger, LevelFilter, Config};
+
 fn main() {
+    // Setup CLI interface
     let matches = App::new("Audbile Split")
         .version("1.0")
         .author("Lukas Knuth")
@@ -28,21 +33,43 @@ fn main() {
             .help("The output folder which contains all transcoded .mp3 files")
             .default_value("output/")
             .takes_value(true)
+        )
+        .arg(Arg::with_name("debug")
+            .long("debug")
+            .help("Print debug information like executed commands")
         ).get_matches();
     
+    // Get paramters from CLI 
     let input = matches.value_of("input").unwrap().to_string();
     let output = matches.value_of("output").unwrap().to_string();
     let activation_bytes = matches.value_of("activation_bytes").unwrap().to_string();
+    
+    // init logger
+    let log_level = if matches.is_present("debug") {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    };
+    SimpleLogger::init(log_level, logger_config()).expect("Couldn't initialize logger!");
 
+    // Run the actual program.
     let result = audible_split::run(input, output, activation_bytes);
     match result {
         Ok(_) => {
-            println!("All chapters completed successfully");
+            info!("All chapters completed successfully");
             process::exit(0);
         },
         Err(_) => {
-            eprintln!("Not every chapter transcoded successfully! See above erros.");
+            error!("Not every chapter transcoded successfully! See above erros.");
             process::exit(1);
         }
+    }
+}
+
+fn logger_config() -> Config {
+    Config {
+        time: None,
+        time_format: None,
+        ..Config::default()
     }
 }

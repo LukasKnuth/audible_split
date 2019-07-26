@@ -1,6 +1,7 @@
 extern crate regex;
 extern crate rayon;
 use rayon::prelude::*;
+#[macro_use] extern crate log;
 
 mod ffmpeg;
 use ffmpeg::FFMPEG;
@@ -67,12 +68,12 @@ fn check() -> CliResult {
     let has_ffmpeg = FFMPEG::is_installed();
 
     if let Some(version) = has_ffprobe {
-        println!("ffprobe version {} found", version);
+        info!("ffprobe version {} found", version);
     } else {
         return Err(CliError::FfprobeNotFound);
     }
     if let Some(version) = has_ffmpeg {
-        println!("ffmpeg version {} found", version);
+        info!("ffmpeg version {} found", version);
         return Ok(());
     } else {
         return Err(CliError::FfmpegNotFound);
@@ -87,7 +88,7 @@ pub fn run(input_file: String, output_folder: String, activation_bytes: String) 
     
     let result = FFPROBE::execute(&input_file)?;
 
-    result.chapters.par_iter().take(4).map(|chapter| {
+    result.chapters.par_iter().map(|chapter| {
         ffmpeg::FfmpegOptions {
             activation_bytes: &activation_bytes,
             start: &chapter.start, end: &chapter.end,
@@ -99,18 +100,18 @@ pub fn run(input_file: String, output_folder: String, activation_bytes: String) 
     }).filter(|option| {
         let exists = option.output_exists();
         if exists {
-            println!("Chapter {}, file \"{}\" already exists. Skipping...", 
+            warn!("Chapter {}, file \"{}\" already exists. Skipping...", 
                 option.track_nr, option.output_file()
             );
         }
         !exists
     }).map(|option| {
-        println!("Chapter {} starting transcoding", option.track_nr);
+        info!("Chapter {} starting transcoding", option.track_nr);
         let start = Instant::now();
         let result = FFMPEG::execute(&option);
         match &result {
-            Ok(_) => println!("Chapter {} done (took {}s)", option.track_nr, start.elapsed().as_secs()),
-            Err(e) => println!("Chapter {} errored: {}", option.track_nr, e)
+            Ok(_) => info!("Chapter {} done (took {}s)", option.track_nr, start.elapsed().as_secs()),
+            Err(e) => error!("Chapter {} errored: {}", option.track_nr, e)
         }
         result
     }).reduce(|| Ok(()), |acc, result| {

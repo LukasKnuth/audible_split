@@ -44,6 +44,8 @@ impl CliTool<&str, FFPROBEoutput, io::Error> for FFPROBE {
             .arg("-print_format").arg("json=c=1")
             .arg("-show_versions");
 
+        debug!("check command: {:?}", command);
+
         if let Ok(output) = command.output() {
             let result: serde_json::Result<Value> = serde_json::from_slice(&output.stdout);
             if let Ok(data) = result {
@@ -66,6 +68,8 @@ impl CliTool<&str, FFPROBEoutput, io::Error> for FFPROBE {
             .arg("-show_chapters")
             .arg("-show_format")
             .arg(options);
+        
+        debug!("probe command: {:?}", command);
 
         let out = command.output()?;
 
