@@ -19,6 +19,24 @@ pub struct FfmpegOptions<'a> {
     pub output_folder: PathBuf,
 }
 
+impl<'a> FfmpegOptions<'a> {
+
+    /// Creates a new `PathBuf` for the output of this file.
+    fn output_path(&self) -> PathBuf {
+        let file_name = format!("out_chapter_{}.mp3", self.track_nr);
+        self.output_folder.join(&file_name)
+    }
+
+    pub fn output_file(&self) -> String {
+        // Can't return ref because PathBuf is owned by this fn. Alternative without copy?
+        String::from(self.output_path().to_str().unwrap())
+    }
+
+    pub fn output_exists(&self) -> bool {
+        self.output_path().exists()
+    }
+}
+
 pub struct FFMPEG;
 
 impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
@@ -52,8 +70,6 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
         let file = options.input_file.to_str().unwrap(); // do unwrap??
         let title = format!("title={}", options.title);
         let track = format!("track={}", options.track_nr);
-        let file_name = format!("out_chapter_{}.mp3", options.track_nr);
-        let output = options.output_folder.join(&file_name);
 
         let mut command = Command::new(BIN_NAME);
         command.arg("-nostdin")
@@ -67,9 +83,9 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
             //.arg("-ac").arg("2")
             .arg("-metadata").arg(&title)
             .arg("-metadata").arg(&track)
-            .arg(output.to_str().unwrap()); // do unwrap??
+            .arg(options.output_file());
 
-        println!("Executing {:?}", command);
+        //println!("Executing {:?}", command); // TODO Can we set output levels?
         
         let output = command.output()?;
         if output.status.success() {

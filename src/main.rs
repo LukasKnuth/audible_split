@@ -40,8 +40,8 @@ fn main() {
             println!("All chapters completed successfully");
             process::exit(0);
         },
-        Err(e) => {
-            eprintln!("Error while transcoding: {}", e);
+        Err(_) => {
+            eprintln!("Not every chapter transcoded successfully! See above erros.");
             process::exit(1);
         }
     }
