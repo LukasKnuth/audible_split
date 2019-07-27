@@ -81,7 +81,7 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
             .arg("-to").arg(options.end)
             .arg("-i").arg(file)
             .arg("-codec:a").arg("libmp3lame")
-            .arg("-qscale:a").arg("4") // Controls bitrate. Make configurable??
+            .arg("-qscale:a").arg("6") // Controls bitrate. Make configurable??
             //.arg("-ac").arg("2")
             .arg("-metadata").arg(&title)
             .arg("-metadata").arg(&track)
