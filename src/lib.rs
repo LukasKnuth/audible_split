@@ -9,11 +9,12 @@ mod ffprobe;
 use ffprobe::FFPROBE;
 use std::fmt;
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::io;
 use std::convert::From;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Mutex;
+use std::fs;
 
 /// Describes a CLI tool wrapped for usage in the program.
 pub trait CliTool<O, T, E> {
@@ -92,6 +93,11 @@ pub fn run(input_file: String, output_folder: String, activation_bytes: String) 
     // Find chapters in input-file:
     let result = FFPROBE::execute(&input_file)?;
 
+    // Setup directory
+    if !Path::new(&output_folder).exists() {
+        fs::create_dir_all(&output_folder)?;
+    }
+
     // Setup progress-bar for CLI.
     let progress = ProgressBar::new(result.chapters.len() as u64);
     progress.set_style(ProgressStyle::default_bar()
@@ -109,7 +115,7 @@ pub fn run(input_file: String, output_folder: String, activation_bytes: String) 
             title: &chapter.tags["title"],
             track_nr: chapter.track_nr + 1,
             input_file: PathBuf::from(&input_file),
-            output_folder: PathBuf::from(&output_folder) // todo make sure this exists and is empty!
+            output_folder: PathBuf::from(&output_folder)
         }
     }).filter(|option| {
         let exists = option.output_exists();
