@@ -10,9 +10,10 @@ use ffprobe::FFPROBE;
 use std::fmt;
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::Instant;
 use std::io;
 use std::convert::From;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::sync::Mutex;
 
 /// Describes a CLI tool wrapped for usage in the program.
 pub trait CliTool<O, T, E> {
@@ -31,6 +32,7 @@ pub trait CliTool<O, T, E> {
     fn execute(options: O) -> Result<T, E>;
 }
 
+/// An error occurred while calling an external Command to do the actual processing.
 #[derive(Debug, Clone)]
 pub enum CliError {
     FfmpegNotFound,
@@ -84,11 +86,23 @@ fn check() -> CliResult {
 ///  MP3 files in the `output_folder`. Use the given `activation_bytes` to decrypt the Audbile
 ///  AAX file.
 pub fn run(input_file: String, output_folder: String, activation_bytes: String) -> CliResult {
+    // Check for required tools
     check()?;
     
+    // Find chapters in input-file:
     let result = FFPROBE::execute(&input_file)?;
 
-    result.chapters.par_iter().map(|chapter| {
+    // Setup progress-bar for CLI.
+    let progress = ProgressBar::new(result.chapters.len() as u64);
+    progress.set_style(ProgressStyle::default_bar()
+        .progress_chars("=>-")
+        .template("{prefix} [{wide_bar}] {pos}/{len} (took {elapsed})")
+    );
+    progress.enable_steady_tick(1000);
+    let progress = Mutex::new(progress);
+
+    // Start paralell processing via Rayon iterators:
+    result.chapters.par_iter().take(3).map(|chapter| {
         ffmpeg::FfmpegOptions {
             activation_bytes: &activation_bytes,
             start: &chapter.start, end: &chapter.end,
@@ -100,27 +114,40 @@ pub fn run(input_file: String, output_folder: String, activation_bytes: String) 
     }).filter(|option| {
         let exists = option.output_exists();
         if exists {
-            warn!("Chapter {}, file \"{}\" already exists. Skipping...", 
+            let progress = progress.lock().unwrap();
+            progress.inc(1);
+            progress.println(&format!(
+                " Skipping: Chapter {}, file \"{}\" already exists.", 
                 option.track_nr, option.output_file()
-            );
+            ));
         }
         !exists
     }).map(|option| {
-        info!("Chapter {} starting transcoding", option.track_nr);
-        let start = Instant::now();
+        {
+            let progress = progress.lock().unwrap();
+            progress.println(&format!(
+                " Transcoding: Chapter {} starting", option.track_nr
+            ));   
+        }
         let result = FFMPEG::execute(&option);
-        match &result {
-            Ok(_) => info!("Chapter {} done (took {}s)", option.track_nr, start.elapsed().as_secs()),
-            Err(e) => error!("Chapter {} errored: {}", option.track_nr, e)
+        {
+            let progress = progress.lock().unwrap();
+            progress.inc(1);
+            match &result {
+                Ok(_) => progress.println(format!(" Done: Chapter {}", option.track_nr)),
+                Err(e) => progress.println(format!(" Error: Chapter {} errored: {}", option.track_nr, e))
+            }
         }
         result
     }).reduce(|| Ok(()), |acc, result| {
-        // reduce an overall success-state. Individual failures are printed previously.
+        // reduce to an overall success-state. Individual failures are printed previously.
         match &acc {
             Err(_) => acc,
             Ok(_) => result
         }
     })?; // Using ? converts the io::Error to a CliError
+
+    progress.lock().unwrap().finish_with_message("All done");
 
     Ok(())
 }
