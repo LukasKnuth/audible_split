@@ -31,11 +31,8 @@ pub struct ProbeChapter {
     pub tags: HashMap<String, String>,
 }
 
-pub struct FFPROBE {}
+pub struct FFPROBE;
 
-impl FFPROBE {
-
-}
 impl CliTool<&str, FFPROBEoutput, io::Error> for FFPROBE {
 
     fn is_installed() -> Option<String> {
