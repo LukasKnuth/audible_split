@@ -15,26 +15,9 @@ pub struct FfmpegOptions<'a> {
     pub end: &'a str,
     pub title: &'a str,
     pub track_nr: u32,
+    pub quality: u8,
     pub input_file: PathBuf,
-    pub output_folder: PathBuf,
-}
-
-impl<'a> FfmpegOptions<'a> {
-
-    /// Creates a new `PathBuf` for the output of this file.
-    fn output_path(&self) -> PathBuf {
-        let file_name = format!("out_chapter_{}.mp3", self.track_nr);
-        self.output_folder.join(&file_name)
-    }
-
-    pub fn output_file(&self) -> String {
-        // Can't return ref because PathBuf is owned by this fn. Alternative without copy?
-        String::from(self.output_path().to_str().unwrap())
-    }
-
-    pub fn output_exists(&self) -> bool {
-        self.output_path().exists()
-    }
+    pub output_file: PathBuf,
 }
 
 pub struct FFMPEG;
@@ -69,7 +52,8 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
         //  -metadata title="<title>" -metadata track="<curr/total>" \
         //  <out>.mp3
 
-        let file = options.input_file.to_str().unwrap(); // do unwrap??
+        let in_file = options.input_file.to_str().unwrap(); // do unwrap??
+        let out_file = options.output_file.to_str().unwrap();
         let title = format!("title={}", options.title);
         let track = format!("track={}", options.track_nr);
 
@@ -79,13 +63,12 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
             .arg("-activation_bytes").arg(options.activation_bytes)
             .arg("-ss").arg(options.start)
             .arg("-to").arg(options.end)
-            .arg("-i").arg(file)
+            .arg("-i").arg(in_file)
             .arg("-codec:a").arg("libmp3lame")
-            .arg("-qscale:a").arg("6") // Controls bitrate. Make configurable??
-            //.arg("-ac").arg("2")
+            .arg("-qscale:a").arg(options.quality.to_string())
             .arg("-metadata").arg(&title)
             .arg("-metadata").arg(&track)
-            .arg(options.output_file());
+            .arg(out_file);
 
         debug!("transcode command: {:?}", command);
         

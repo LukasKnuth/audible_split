@@ -30,8 +30,34 @@ fn main() {
         .arg(Arg::with_name("output")
             .short("o").long("output")
             .value_name("FOLDER")
-            .help("The output folder which contains all transcoded .mp3 files")
+            .help("The output folder which contains all transcoded .mp3 files. \
+            Will be created recursively if not existing.")
             .default_value("output/")
+            .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("quality")
+            .short("q").long("quality")
+            .value_name("0..9")
+            .help("Value for libmp3lame qscale setting.")
+            .long_help("Value for libmp3lame qscale setting. \
+            Generally, a smaller number yields better quality but higher filesize. \
+            See https://trac.ffmpeg.org/wiki/Encode/MP3 for more information and guidence.")
+            .default_value("6")
+            .validator(validate_config)
+            .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("name_format")
+            .long("format")
+            .value_name("FORMAT")
+            .help("Format the file-name for output MP3 files.")
+            .long_help("The .mp3 extension will be added if absent. Character escaping and removal \
+            of spaces is done automatically. Available placeholders are:
+    {title} - The title of the AudioBook
+    {track_nr} - The number of the chapter
+    {track_title} - The title of the track\n")
+            .default_value(audible_split::DEFAULT_FORMAT)
             .takes_value(true)
         )
         .arg(Arg::with_name("debug")
@@ -40,9 +66,13 @@ fn main() {
         ).get_matches();
     
     // Get paramters from CLI 
-    let input = matches.value_of("input").unwrap().to_string();
-    let output = matches.value_of("output").unwrap().to_string();
-    let activation_bytes = matches.value_of("activation_bytes").unwrap().to_string();
+    let params = audible_split::RunParameters {
+        input_file: matches.value_of("input").unwrap().to_string(),
+        output_folder: matches.value_of("output").unwrap().to_string(),
+        activation_bytes: matches.value_of("activation_bytes").unwrap().to_string(),
+        quality: matches.value_of("quality").unwrap().parse().unwrap(),
+        output_format: matches.value_of("name_format").unwrap().to_string()
+    };
     
     // init logger
     let log_level = if matches.is_present("debug") {
@@ -53,7 +83,7 @@ fn main() {
     SimpleLogger::init(log_level, logger_config()).expect("Couldn't initialize logger!");
 
     // Run the actual program.
-    let result = audible_split::run(input, output, activation_bytes);
+    let result = audible_split::run(params);
     match result {
         Ok(_) => {
             info!("All chapters completed successfully");
@@ -71,5 +101,18 @@ fn logger_config() -> Config {
         time: None,
         time_format: None,
         ..Config::default()
+    }
+}
+
+fn validate_config(input: String) -> Result<(), String> {
+    let parse_res: Result<u8, _> = input.parse();
+    if let Ok(nr) = parse_res {
+        if nr <= 9 { // >= 0 is implied because of unsigend type
+            Ok(())
+        } else {
+            Err(format!("Value {} is not in allowed range of 0..9", nr))
+        }
+    } else {
+        Err(format!("Value \"{}\" couldn't be parsed to number.", input))
     }
 }
