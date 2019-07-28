@@ -42,7 +42,7 @@ fn main() {
             .help("Value for libmp3lame qscale setting.")
             .long_help("Value for libmp3lame qscale setting. \
             Generally, a smaller number yields better quality but higher filesize. \
-            See https://trac.ffmpeg.org/wiki/Encode/MP3 for more information and guidence.")
+            See https://trac.ffmpeg.org/wiki/Encode/MP3 for more information and guidence.\n")
             .default_value("6")
             .validator(validate_config)
             .takes_value(true)
