@@ -146,6 +146,7 @@ pub fn run(params: RunParameters) -> CliResult {
     if !Path::new(&params.output_folder).exists() {
         fs::create_dir_all(&params.output_folder)?;
     }
+    info!("Writing output to {}", params.output_folder);
 
     // Setup progress-bar for CLI.
     let progress = ProgressBar::new(result.chapters.len() as u64);
@@ -157,7 +158,7 @@ pub fn run(params: RunParameters) -> CliResult {
     let progress = Mutex::new(progress);
 
     // Start paralell processing via Rayon iterators:
-    result.chapters.par_iter().map(|chapter| { // todo remove take(3)
+    result.chapters.par_iter().map(|chapter| {
         let track_nr = chapter.track_nr + 1;
         let book_title = &result.format.tags["title"];
         ffmpeg::FfmpegOptions {
