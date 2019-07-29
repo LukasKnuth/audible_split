@@ -10,9 +10,10 @@ use simplelog::{SimpleLogger, LevelFilter, Config};
 fn main() {
     // Setup CLI interface
     let matches = App::new("Audbile Split")
-        .version("1.0")
+        .version(clap::crate_version!()) // uses version from Cargo.toml
         .author("Lukas Knuth")
-        .about("Takes an Audible .aax file and splits it into an .mp3 file per chapter.")
+        .about("Takes an Audible .aax file and splits it into an .mp3 file per chapter.
+\nCode & Bugtracker at https://github.com/LukasKnuth/audible_split")
         .arg(Arg::with_name("input")
             .short("i").long("input")
             .value_name("FILE.aax")
