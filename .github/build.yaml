@@ -1,0 +1,14 @@
+name: Rust Build
+on: [push]
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@master
+    - name: Test
+      run: cargo test
+    - name: Build
+      run: cargo build --release --verbose

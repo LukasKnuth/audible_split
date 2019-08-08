@@ -1,0 +1,5 @@
+{
+    "name": "Rust Test & Build",
+    "description": "Test the code and create release-builds.",
+    "categories": ["build", "test"]
+}
