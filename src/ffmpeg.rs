@@ -68,6 +68,7 @@ impl<'a> CliTool<&FfmpegOptions<'a>, (), io::Error> for FFMPEG {
             .arg("-qscale:a").arg(options.quality.to_string())
             .arg("-metadata").arg(&title)
             .arg("-metadata").arg(&track)
+            .arg("-map_chapters").arg("-1") // Clear old chapter markers
             .arg(out_file);
 
         debug!("transcode command: {:?}", command);
