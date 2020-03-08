@@ -29,6 +29,11 @@ To decrypt an `.aax` file, it's Activation Bytes are required. These will be the
 > This blurb is borrowed from the https://apprenticealf.wordpress.com/ page.
 
 1. Download an Audiobook `.aax` file from Audible and copy it to a work-directory.
+
+    These can be accessed directly from the Audible site from the Download button on the "My Books" page (under "Library"), <https://www.audible.com.au/lib>
+
+    Alternatively, they can be downloaded via the Audible app and the `.aax` file extracted from their application directory:
+
     * On Windows 10, get the Audbile App from the Microsoft Store and download an AudioBook. The files are located under `C:\Users\[username]\AppData\Local\Packages\AudibleInc.AudibleforWindowsPhone_xns73kv1ymhp2\LocalState\Content`
     * On Linux: ? (PR accepted!)
     * On MacOSX: ? (PR accepted!)
